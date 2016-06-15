@@ -15,7 +15,6 @@ var data = [],//数据
 function initMapData(r, c) {
     row = r ? r : row;
     column = c ? c : column;
-    console.log(this.row)
     // 初始化原始地图数据
     for (var i = 0; i < row; i++) {
         var oneRow = [];
@@ -73,6 +72,23 @@ function testPath(x, y) {
     }
 };
 
+/**
+ * 节点p是否在路径中已经存在
+ *
+ * @param p
+ * @return
+ */
+function containts(p) {
+    var rest = false;
+    for (var i = 0; i < path.length; i++) {
+        var point = path[i];
+        if (p.x == point.x && p.y == point.y) {
+            rest = true;
+            break;
+        }
+    }
+    return rest;
+};
 
 /**
  * 探测以x,y为出发点的8个方向，判断x,y点是否形成一个回路
@@ -175,23 +191,6 @@ function searchPath(p) {
     }
 };
 
-/**
- * 节点p是否在路径中已经存在
- *
- * @param p
- * @return
- */
-function containts(p) {
-    var rest = false;
-    for (var i = 0; i < path.length; i++) {
-        var point = path[i];
-        if (p.x == point.x && p.y == point.y) {
-            rest = true;
-            break;
-        }
-    }
-    return rest;
-};
 //console.log(initMapData());
 exports.initMapData = initMapData;
 

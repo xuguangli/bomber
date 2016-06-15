@@ -1,10 +1,11 @@
 var initData = require("./initMap");
 var fs = require('fs');
-function init(response, param) {
+function init(response, params) {
 	response.writeHead(200, {
 		"Content-Type" : "text/plain"
 	});
-	var rest = initData.initMapData();
+	var param = params.param
+	var rest = initData.initMapData(param.row, param.column);
 	response.write(rest);
 	response.end();
 }
@@ -25,8 +26,10 @@ function bomber(response, param) {
 		}
 	});
 }
-function js(response, param) {
-	fs.readFile("../js/"+param, "binary", function(error, file) {
+function js(response, params) {
+	var resource = params.res;
+	console.log(resource)
+	fs.readFile("../js/"+resource, "binary", function(error, file) {
 		if (error) {
 			response.writeHead(500, {
 				"Content-Type" : "text/plain"
@@ -42,8 +45,10 @@ function js(response, param) {
 		}
 	});
 }
-function resources(response, param) {
-	fs.readFile("../resources/"+param, "binary", function(error, file) {
+function resources(response, params) {
+	var resource = params.res;
+	console.log(resource)
+	fs.readFile("../resources/"+resource, "binary", function(error, file) {
 		if (error) {
 			response.writeHead(500, {
 				"Content-Type" : "text/plain"
