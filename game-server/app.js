@@ -16,7 +16,13 @@ app.configure('production|development', 'connector', function(){
       useProtobuf : true
     });
 });
-
+app.configure('production|development', 'gate', function(){
+    app.set('connectorConfig',
+        {
+            connector : pomelo.connectors.hybridconnector,
+            useProtobuf : true
+        });
+});
 // start app
 app.start();
 
