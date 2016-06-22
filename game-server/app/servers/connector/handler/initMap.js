@@ -9,7 +9,7 @@ var data = [],//数据
     WALL = 2,
     BRICK = 1,
     ROAD = 0,
-    type = [0, 1, 2, 3],
+    type = [0, 1, 2],
     path = [];
 
 function initMapData(r, c) {
@@ -22,7 +22,7 @@ function initMapData(r, c) {
             if (i == 0 || j == 0 || i == row - 1 || j == column - 1) {
                 oneRow[j] = WALL;//地图外围砖墙包围
             } else {
-                var value = type[parseInt(Math.random() * 4)];
+                var value = type[parseInt(Math.random() * 3)];
                 oneRow[j] = value;
             }
         }

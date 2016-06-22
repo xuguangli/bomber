@@ -16,7 +16,7 @@ var row = 30,//地图默认行数
     KEY_A = 65,
     KEY_D = 68,
     KEY_SPACE = 32,
-    SPEED = 5,//角色行走的速度
+    SPEED = 1,//角色行走的速度
     ROAD = 0,
     actor,
     router = "gate.gateHandler.queryEntry";
@@ -58,7 +58,7 @@ var getXY = function (x, y) {
         y = parseInt(Math.random() * row);
     }
     var r = data[y];
-    console.log(x, y);
+    //console.log(x, y);
     if (r[x] == ROAD) {
         return {
             'x': x,
@@ -72,25 +72,59 @@ var getXY = function (x, y) {
 var addRole = function (role, x, y) {
     var p = getXY(x, y)
     actor = new Role(role, default_block_height * p.x, default_block_width * p.y);
+    //console.log("rx,ry : " + default_block_height * p.x, default_block_width * p.y);
     drawImage(actor.image, actor.x, actor.y);
 }
+var collision = function (gx, gy) {
+    //console.log("GX,GY : " + gx, gy);
+    var x, y;
+    x = parseInt(gx / default_block_width);
+    y = parseInt(gy / default_block_height)
+    var r = data[y];
+    //console.log(x, y);
+    console.log("value : " + r[x]);
+    if (r[x] != ROAD) {
+        return true;
+    } else {
+        return false;
+    }
+}
 var roleMove = function (code) {
+    var flag = true;
     if (code == KEY_W) {//上移
-        drawRect(actor.x, actor.y + actor.height - SPEED, actor.width, SPEED);
-        actor.y = actor.y - SPEED;
+        if (!collision(actor.x, actor.y - SPEED)) {
+            drawRect(actor.x, actor.y + actor.height - SPEED, actor.width, SPEED);
+            actor.y = actor.y - SPEED;
+        } else {
+            flag = false;
+        }
     } else if (code == KEY_S) {//下移
-        drawRect(actor.x, actor.y, actor.width, SPEED);
-        actor.y = actor.y + SPEED;
+        if (!collision(actor.x, actor.y + SPEED + default_block_height - 1)) {
+            drawRect(actor.x, actor.y, actor.width, SPEED);
+            actor.y = actor.y + SPEED;
+        } else {
+            flag = false;
+        }
     } else if (code == KEY_A) {//左移
-        drawRect(actor.x + actor.width - 5, actor.y, SPEED, actor.height);
-        actor.x = actor.x - SPEED;
+        if (!collision(actor.x - SPEED, actor.y)) {
+            drawRect(actor.x + actor.width - SPEED, actor.y, SPEED, actor.height);
+            actor.x = actor.x - SPEED;
+        } else {
+            flag = false;
+        }
     } else if (code == KEY_D) {//右移
-        drawRect(actor.x, actor.y, SPEED, actor.height);
-        actor.x = actor.x + SPEED;
+        if (!collision(actor.x + SPEED + default_block_width - 1, actor.y)) {
+            drawRect(actor.x, actor.y, SPEED, actor.height);
+            actor.x = actor.x + SPEED;
+        } else {
+            flag = false;
+        }
     } else if (code == KEY_SPACE) {//空格
 
     }
-    drawImage(actor.image, actor.x, actor.y);
+    if (flag) {
+        drawImage(actor.image, actor.x, actor.y);
+    }
 }
 
 var doKeyDown = function (e) {
