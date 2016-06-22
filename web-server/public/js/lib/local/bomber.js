@@ -20,18 +20,23 @@ var row = 30,//地图默认行数
     ROAD = 0,
     actor,
     router = "gate.gateHandler.queryEntry";
+
 var LOGIN_ERROR = "连接服务器异常";
 var drawImage = function (image, x, y) {
-    context.drawImage(image, y, x);
+    context.drawImage(image, x, y);
 };
+//画矩形
+var drawRect = function (x, y, width, height) {
+    context.fillRect(x, y, width, height)
+}
 var drawMap = function (data, callback) {
     for (var row = 0; row < data.length; row++) {
         var oneRow = data[row];
         for (var column = 0; column < oneRow.length; column++) {
             if (oneRow[column] == 2) {
-                drawImage(wall, row * default_block_height, column * default_block_width, 16, 16);
+                drawImage(wall, column * default_block_width, row * default_block_height, 16, 16);
             } else if (oneRow[column] == 1) {
-                drawImage(brick, row * default_block_height, column * default_block_width, 16, 16);
+                drawImage(brick, column * default_block_width, row * default_block_height, 16, 16);
             }
             //else if (oneRow[column] == 3) {
             //    drawImage(context, red, row * 16, column * 16, 16, 16);
@@ -47,14 +52,14 @@ var drawMap = function (data, callback) {
  */
 var getXY = function (x, y) {
     if (x == undefined) {
-        x = parseInt(Math.random() * row);
+        x = parseInt(Math.random() * column);
     }
     if (y == undefined) {
-        y = parseInt(Math.random() * column);
+        y = parseInt(Math.random() * row);
     }
-    var r = data[x];
+    var r = data[y];
     console.log(x, y);
-    if (r[y] == ROAD) {
+    if (r[x] == ROAD) {
         return {
             'x': x,
             'y': y
@@ -71,18 +76,23 @@ var addRole = function (role, x, y) {
 }
 var roleMove = function (code) {
     if (code == KEY_W) {//上移
-        actor.x = actor.x - SPEED;
-    } else if (code == KEY_S) {//下移
-        actor.x = actor.x + SPEED;
-    } else if (code == KEY_A) {//左移
+        drawRect(actor.x, actor.y + actor.height - SPEED, actor.width, SPEED);
         actor.y = actor.y - SPEED;
-    } else if (code == KEY_D) {//右移
+    } else if (code == KEY_S) {//下移
+        drawRect(actor.x, actor.y, actor.width, SPEED);
         actor.y = actor.y + SPEED;
+    } else if (code == KEY_A) {//左移
+        drawRect(actor.x + actor.width - 5, actor.y, SPEED, actor.height);
+        actor.x = actor.x - SPEED;
+    } else if (code == KEY_D) {//右移
+        drawRect(actor.x, actor.y, SPEED, actor.height);
+        actor.x = actor.x + SPEED;
     } else if (code == KEY_SPACE) {//空格
 
     }
     drawImage(actor.image, actor.x, actor.y);
 }
+
 var doKeyDown = function (e) {
     var keyID = e.keyCode ? e.keyCode : e.which;
     roleMove(keyID);
