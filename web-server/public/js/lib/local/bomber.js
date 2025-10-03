@@ -18,29 +18,72 @@ var row = 30,//地图默认行数
     KEY_SPACE = 32,
     SPEED = 1,//角色行走的速度
     ROAD = 0,
+    BRICK = 1,
+    WALL = 2,
+    BOMB = 3,
+    BOMB_FUSE = 2200,
+    EXPLOSION_DURATION = 350,
+    BOMB_RANGE = 3,
+    MAX_ACTIVE_BOMBS = 3,
+    BACKGROUND_COLOR = "#EEEEFF",
+    wallImage,
+    brickImage,
+    roleImage,
     actor,
+    bombs = [],
+    gameOver = false,
     router = "gate.gateHandler.queryEntry";
 
 var LOGIN_ERROR = "连接服务器异常";
-var drawImage = function (image, x, y) {
-    context.drawImage(image, x, y);
+var drawImage = function (image, x, y, width, height) {
+    if (width !== undefined && height !== undefined) {
+        context.drawImage(image, x, y, width, height);
+    } else {
+        context.drawImage(image, x, y);
+    }
 };
 //画矩形
 var drawRect = function (x, y, width, height) {
-    context.fillRect(x, y, width, height)
+    context.save();
+    context.fillStyle = BACKGROUND_COLOR;
+    context.fillRect(x, y, width, height);
+    context.restore();
 }
+
+var drawBombTile = function (tileX, tileY) {
+    context.save();
+    context.fillStyle = "#222";
+    var px = tileX * default_block_width;
+    var py = tileY * default_block_height;
+    var centerX = px + default_block_width / 2;
+    var centerY = py + default_block_height / 2;
+    var radius = Math.min(default_block_width, default_block_height) / 2 - 2;
+    context.beginPath();
+    context.arc(centerX, centerY, radius, 0, Math.PI * 2, false);
+    context.fill();
+    context.restore();
+}
+
+var redrawTile = function (tileX, tileY) {
+    context.save();
+    context.fillStyle = BACKGROUND_COLOR;
+    context.fillRect(tileX * default_block_width, tileY * default_block_height, default_block_width, default_block_height);
+    context.restore();
+    var value = data[tileY][tileX];
+    if (value === WALL) {
+        drawImage(wallImage, tileX * default_block_width, tileY * default_block_height, default_block_width, default_block_height);
+    } else if (value === BRICK) {
+        drawImage(brickImage, tileX * default_block_width, tileY * default_block_height, default_block_width, default_block_height);
+    } else if (value === BOMB) {
+        drawBombTile(tileX, tileY);
+    }
+}
+
 var drawMap = function (data, callback) {
-    for (var row = 0; row < data.length; row++) {
-        var oneRow = data[row];
-        for (var column = 0; column < oneRow.length; column++) {
-            if (oneRow[column] == 2) {
-                drawImage(wall, column * default_block_width, row * default_block_height, 16, 16);
-            } else if (oneRow[column] == 1) {
-                drawImage(brick, column * default_block_width, row * default_block_height, 16, 16);
-            }
-            //else if (oneRow[column] == 3) {
-            //    drawImage(context, red, row * 16, column * 16, 16, 16);
-            //}
+    for (var rowIndex = 0; rowIndex < data.length; rowIndex++) {
+        var oneRow = data[rowIndex];
+        for (var columnIndex = 0; columnIndex < oneRow.length; columnIndex++) {
+            redrawTile(columnIndex, rowIndex);
         }
     }
 }
@@ -69,27 +112,190 @@ var getXY = function (x, y) {
     }
 }
 
-var addRole = function (role, x, y) {
+var addRole = function (x, y) {
     var p = getXY(x, y)
-    actor = new Role(role, default_block_height * p.x, default_block_width * p.y);
+    actor = new Role(roleImage, default_block_height * p.x, default_block_width * p.y);
     //console.log("rx,ry : " + default_block_height * p.x, default_block_width * p.y);
     drawImage(actor.image, actor.x, actor.y);
 }
 var collision = function (gx, gy) {
-    //console.log("GX,GY : " + gx, gy);
-    var x, y;
-    x = parseInt(gx / default_block_width);
-    y = parseInt(gy / default_block_height)
-    var r = data[y];
-    //console.log(x, y);
-    console.log("value : " + r[x]);
-    if (r[x] != ROAD) {
+    var x = parseInt(gx / default_block_width);
+    var y = parseInt(gy / default_block_height);
+    if (y < 0 || y >= data.length || x < 0 || x >= data[y].length) {
         return true;
-    } else {
+    }
+    var r = data[y];
+    var value = r[x];
+    if (value === ROAD) {
         return false;
     }
+    if (value === BOMB && actor) {
+        var actorTile = getActorTile();
+        if (actorTile && actorTile.x === x && actorTile.y === y) {
+            return false;
+        }
+    }
+    return true;
 }
+
+var getActorTile = function () {
+    if (!actor) {
+        return null;
+    }
+    return {
+        x: Math.floor((actor.x + actor.width / 2) / default_block_width),
+        y: Math.floor((actor.y + actor.height / 2) / default_block_height)
+    };
+}
+
+var placeBomb = function () {
+    if (gameOver || !actor || !data) {
+        return;
+    }
+    if (bombs.length >= MAX_ACTIVE_BOMBS) {
+        return;
+    }
+    var tile = getActorTile();
+    if (!tile) {
+        return;
+    }
+    if (tile.y < 0 || tile.y >= data.length || tile.x < 0 || tile.x >= data[tile.y].length) {
+        return;
+    }
+    if (data[tile.y][tile.x] !== ROAD) {
+        return;
+    }
+    var bomb = {
+        x: tile.x,
+        y: tile.y,
+        exploded: false
+    };
+    bombs.push(bomb);
+    data[tile.y][tile.x] = BOMB;
+    redrawTile(tile.x, tile.y);
+    bomb.timeout = setTimeout(function () {
+        explodeBomb(bomb);
+    }, BOMB_FUSE);
+}
+
+var getExplosionTiles = function (originX, originY) {
+    var tiles = [{x: originX, y: originY}];
+    var directions = [
+        {dx: 1, dy: 0},
+        {dx: -1, dy: 0},
+        {dx: 0, dy: 1},
+        {dx: 0, dy: -1}
+    ];
+    for (var i = 0; i < directions.length; i++) {
+        var dir = directions[i];
+        for (var step = 1; step <= BOMB_RANGE; step++) {
+            var x = originX + dir.dx * step;
+            var y = originY + dir.dy * step;
+            if (y < 0 || y >= data.length || x < 0 || x >= data[y].length) {
+                break;
+            }
+            var tileValue = data[y][x];
+            if (tileValue === WALL) {
+                break;
+            }
+            tiles.push({x: x, y: y});
+            if (tileValue === BRICK) {
+                break;
+            }
+        }
+    }
+    return tiles;
+}
+
+var drawExplosion = function (tiles) {
+    context.save();
+    context.fillStyle = "#f5b041";
+    for (var i = 0; i < tiles.length; i++) {
+        var tile = tiles[i];
+        context.fillRect(tile.x * default_block_width, tile.y * default_block_height, default_block_width, default_block_height);
+    }
+    context.restore();
+}
+
+var renderGameOver = function () {
+    context.save();
+    context.fillStyle = "rgba(0,0,0,0.6)";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#ffffff";
+    context.font = "48px Arial";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText("Game Over", canvas.width / 2, canvas.height / 2);
+    context.restore();
+}
+
+var killActor = function () {
+    if (gameOver) {
+        return;
+    }
+    gameOver = true;
+    $(document).off('keydown', doKeyDown);
+}
+
+var checkActorHit = function (tiles) {
+    if (!actor || gameOver) {
+        return;
+    }
+    var actorRect = {
+        left: actor.x,
+        right: actor.x + actor.width,
+        top: actor.y,
+        bottom: actor.y + actor.height
+    };
+    for (var i = 0; i < tiles.length; i++) {
+        var tile = tiles[i];
+        var left = tile.x * default_block_width;
+        var top = tile.y * default_block_height;
+        var right = left + default_block_width;
+        var bottom = top + default_block_height;
+        if (!(actorRect.left >= right || actorRect.right <= left || actorRect.top >= bottom || actorRect.bottom <= top)) {
+            killActor();
+            break;
+        }
+    }
+}
+
+var explodeBomb = function (bomb) {
+    if (!bomb || bomb.exploded) {
+        return;
+    }
+    bomb.exploded = true;
+    var index = bombs.indexOf(bomb);
+    if (index !== -1) {
+        bombs.splice(index, 1);
+    }
+    data[bomb.y][bomb.x] = ROAD;
+    var tiles = getExplosionTiles(bomb.x, bomb.y);
+    for (var i = 0; i < tiles.length; i++) {
+        var tile = tiles[i];
+        if (data[tile.y][tile.x] === BRICK) {
+            data[tile.y][tile.x] = ROAD;
+        }
+    }
+    drawExplosion(tiles);
+    checkActorHit(tiles);
+    setTimeout(function () {
+        for (var i = 0; i < tiles.length; i++) {
+            var tile = tiles[i];
+            redrawTile(tile.x, tile.y);
+        }
+        if (!gameOver) {
+            drawImage(actor.image, actor.x, actor.y);
+        } else {
+            renderGameOver();
+        }
+    }, EXPLOSION_DURATION);
+}
+
 var roleMove = function (code) {
+    if (gameOver) {
+        return;
+    }
     var flag = true;
     if (code == KEY_W) {//上移
         if (!collision(actor.x, actor.y - SPEED)) {
@@ -120,7 +326,9 @@ var roleMove = function (code) {
             flag = false;
         }
     } else if (code == KEY_SPACE) {//空格
-
+        placeBomb();
+        drawImage(actor.image, actor.x, actor.y);
+        return;
     }
     if (flag) {
         drawImage(actor.image, actor.x, actor.y);
@@ -128,6 +336,9 @@ var roleMove = function (code) {
 }
 
 var doKeyDown = function (e) {
+    if (gameOver) {
+        return;
+    }
     var keyID = e.keyCode ? e.keyCode : e.which;
     roleMove(keyID);
 }
@@ -143,11 +354,25 @@ window.onload = function () {
     //TODO 获取设备类型，屏幕大小，计算合适的地图行数和列数
     canvas = document.getElementById('canvas');
 
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
+
+    brickImage = document.getElementById('brick');
+    wallImage = document.getElementById('wall');
+    roleImage = document.getElementById('role');
+
+    if (!brickImage || !wallImage || !roleImage) {
+        console.error('Missing bomber sprite assets in DOM');
+        return;
+    }
+
     canvas.width = column * default_block_width;
     canvas.height = row * default_block_height;
 
     context = canvas.getContext('2d');
-    context.fillStyle = "#EEEEFF";
+    context.fillStyle = BACKGROUND_COLOR;
     context.fillRect(0, 0, canvas.width, canvas.height);
     var param = {
         'row': row,
@@ -178,7 +403,7 @@ window.onload = function () {
                     data = JSON.parse(map_data.msg);
                     drawMap(data);
                     addEventListener();
-                    addRole(role);
+                    addRole();
                 });
             });
         });
