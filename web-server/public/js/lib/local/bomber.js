@@ -26,6 +26,9 @@ var row = 30,//地图默认行数
     BOMB_RANGE = 3,
     MAX_ACTIVE_BOMBS = 3,
     BACKGROUND_COLOR = "#EEEEFF",
+    wallImage,
+    brickImage,
+    roleImage,
     actor,
     bombs = [],
     gameOver = false,
@@ -68,9 +71,9 @@ var redrawTile = function (tileX, tileY) {
     context.restore();
     var value = data[tileY][tileX];
     if (value === WALL) {
-        drawImage(wall, tileX * default_block_width, tileY * default_block_height, default_block_width, default_block_height);
+        drawImage(wallImage, tileX * default_block_width, tileY * default_block_height, default_block_width, default_block_height);
     } else if (value === BRICK) {
-        drawImage(brick, tileX * default_block_width, tileY * default_block_height, default_block_width, default_block_height);
+        drawImage(brickImage, tileX * default_block_width, tileY * default_block_height, default_block_width, default_block_height);
     } else if (value === BOMB) {
         drawBombTile(tileX, tileY);
     }
@@ -109,9 +112,9 @@ var getXY = function (x, y) {
     }
 }
 
-var addRole = function (role, x, y) {
+var addRole = function (x, y) {
     var p = getXY(x, y)
-    actor = new Role(role, default_block_height * p.x, default_block_width * p.y);
+    actor = new Role(roleImage, default_block_height * p.x, default_block_width * p.y);
     //console.log("rx,ry : " + default_block_height * p.x, default_block_width * p.y);
     drawImage(actor.image, actor.x, actor.y);
 }
@@ -351,6 +354,20 @@ window.onload = function () {
     //TODO 获取设备类型，屏幕大小，计算合适的地图行数和列数
     canvas = document.getElementById('canvas');
 
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
+
+    brickImage = document.getElementById('brick');
+    wallImage = document.getElementById('wall');
+    roleImage = document.getElementById('role');
+
+    if (!brickImage || !wallImage || !roleImage) {
+        console.error('Missing bomber sprite assets in DOM');
+        return;
+    }
+
     canvas.width = column * default_block_width;
     canvas.height = row * default_block_height;
 
@@ -386,7 +403,7 @@ window.onload = function () {
                     data = JSON.parse(map_data.msg);
                     drawMap(data);
                     addEventListener();
-                    addRole(role);
+                    addRole();
                 });
             });
         });
